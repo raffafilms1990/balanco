@@ -1,5 +1,5 @@
 // Offline cache for Balanço. Bump VERSION when any file changes, or the phone keeps the old copy.
-const VERSION = 'balanco-v1';
+const VERSION = 'balanco-v2';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs'];
 

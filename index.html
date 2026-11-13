@@ -196,7 +196,7 @@
    Valores sempre em centavos (inteiros) para não errar arredondamento.
    Entrada de dados: extratos OFX ou CSV do BB, Inter e BTG, ou lançamento manual. */
 
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 const BANKS = ['BB', 'Inter', 'BTG'];
 const BANK_NAME = { BB: 'Banco do Brasil', Inter: 'Inter', BTG: 'BTG Pactual' };
 const ACCOUNTS = [...BANKS, 'Dinheiro'];
@@ -709,8 +709,8 @@ function emptyHTML() {
     <div class="eyebrow">Comece aqui</div>
     <div class="mid">Seu balanço do mês, sem conectar nada.</div>
     <ol>
-      <li>No app ou site do <b>Banco do Brasil</b>, do <b>Inter</b> e do <b>BTG</b>, abra o extrato do mês e <b>exporte em OFX</b> (ou CSV / planilha). Salve no app Arquivos.</li>
-      <li>Toque em <b>Importar extrato</b> e escolha os arquivos (pode escolher os dois de uma vez).</li>
+      <li>No app ou site do <b>Banco do Brasil</b>, do <b>Inter</b> e do <b>BTG</b>, abra o extrato do mês e <b>exporte em OFX</b> (o BTG só tem <b>PDF</b>, que também serve). Salve no app Arquivos.</li>
+      <li>Toque em <b>Importar extrato</b> e escolha os arquivos (pode escolher os três de uma vez).</li>
       <li>Pronto: o app separa o que entrou e o que saiu e organiza por categoria.</li>
     </ol>
     <div class="note">Tudo fica guardado só neste aparelho. Nada é enviado para a internet. Importar o mesmo extrato de novo não duplica nada.</div>
