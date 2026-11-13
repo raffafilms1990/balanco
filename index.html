@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Balanço</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Nothing leaves the phone: the page may only talk to its own address (no APIs, no fonts, no analytics). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#0c0913">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Balanço">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-512.png">
+<style>
+  /* Roxo + verde neon, sempre escuro (neon não se lê em fundo claro).
+     Verde = dinheiro que entrou. Rosa-roxo = dinheiro que saiu. Roxo = ações e destaques. */
+  :root {
+    --bg: #0c0913;
+    --panel: #161124;
+    --panel2: #221a37;
+    --line: #2f2547;
+    --fg: #f2edfb;
+    --muted: #a49abb;
+    --purple: #a259ff;
+    --purple-deep: #6d28d9;
+    --neon: #39ff88;
+    --neon-ink: #04170c;
+    --out: #ff5cc8;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(120% 60% at 50% -10%, rgba(162, 89, 255, .22), transparent 60%);
+    background-attachment: fixed;
+    color: var(--fg);
+    font: 16px/1.4 var(--font);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 100vh;
+  }
+  [hidden] { display: none !important; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; touch-action: manipulation; }
+  :focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+
+  .app {
+    max-width: 720px; margin: 0 auto;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+             calc(120px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; min-height: 52px; }
+  .top h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; }
+  .top h1 span { color: var(--neon); text-shadow: 0 0 18px rgba(57, 255, 136, .55); }
+
+  .ghost {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 42px; padding: 0 14px; background: transparent;
+    border: 1px solid var(--line); border-radius: 999px; font-size: 15px;
+  }
+  .ghost:active { background: var(--panel2); }
+  .ghost.icon { width: 44px; height: 44px; padding: 0; }
+  .ghost.danger { color: var(--out); border-color: rgba(255, 92, 200, .4); }
+  .ghost svg { width: 20px; height: 20px; }
+  .primary {
+    min-height: 54px; padding: 0 20px; border: 0; border-radius: 14px;
+    background: linear-gradient(135deg, var(--purple), var(--purple-deep)); color: #fff;
+    font-weight: 650; font-size: 17px; box-shadow: 0 6px 24px rgba(162, 89, 255, .35);
+  }
+  .primary:active { filter: brightness(1.1); }
+  .neonbtn { background: var(--neon); color: var(--neon-ink); box-shadow: 0 0 22px rgba(57, 255, 136, .35); }
+
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 14px max(16px, env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: linear-gradient(transparent, var(--bg) 35%);
+    display: flex; gap: 10px; justify-content: center;
+  }
+  .bar .primary { flex: 1; max-width: 620px; }
+  .bar .add { width: 54px; height: 54px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); font-size: 28px; line-height: 1; color: var(--neon); }
+
+  .nav { display: flex; align-items: center; gap: 8px; margin: 6px 0 12px; }
+  .nav .label { flex: 1; text-align: center; font-size: 20px; font-weight: 650; }
+  .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 3px; gap: 3px; }
+  .seg button { flex: 1; min-height: 36px; border: 0; background: transparent; border-radius: 9px; color: var(--muted); font-size: 14px; }
+  .seg button[aria-pressed="true"] { background: var(--panel2); color: var(--fg); font-weight: 600; box-shadow: inset 0 0 0 1px rgba(162, 89, 255, .5); }
+  .controls { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-top: 12px; }
+  .hero { border-color: rgba(162, 89, 255, .45); background: linear-gradient(160deg, #221640, var(--panel) 70%); }
+  .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .big { font-size: 36px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .mid { font-size: 21px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .in { color: var(--neon); }
+  .in.glow { text-shadow: 0 0 16px rgba(57, 255, 136, .45); }
+  .out { color: var(--out); }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .note { margin-top: 8px; font-size: 14px; color: var(--muted); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .split .card { margin: 0; }
+  .accts { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  h2.sec { font-size: 15px; margin: 26px 0 4px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .cat {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; width: 100%;
+    padding: 12px 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: left;
+  }
+  .cat:first-of-type { border-top: 0; }
+  .cat .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .cat .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; }
+  .cat .fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--purple-deep), var(--purple)); }
+  .cat.sel .fill { background: var(--out); }
+  .filter { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; font-size: 14px; }
+
+  .day h3 { font-size: 13px; color: var(--muted); margin: 18px 0 2px; font-weight: 600; }
+  .tx {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-top: 6px; text-align: left;
+  }
+  .tx:active { background: var(--panel2); }
+  .tx .d { flex: 1; min-width: 0; }
+  .tx .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+  .tx .m { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .tx .v { font-variant-numeric: tabular-nums; font-weight: 650; white-space: nowrap; }
+  .tx.neutral { opacity: .55; }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--panel2); color: var(--fg); margin-right: 4px; }
+
+  .yr { width: 100%; display: grid; grid-template-columns: 52px 1fr 1fr 1fr; gap: 8px; align-items: center; padding: 12px 4px; border: 0; border-top: 1px solid var(--line); background: none; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .yr:first-of-type { border-top: 0; }
+  .yr span:first-child { text-align: left; font-weight: 600; }
+  .yr.head { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding-top: 0; }
+  .yr.total { font-weight: 700; border-top: 1px solid var(--purple); }
+
+  .empty ol { padding-left: 22px; margin: 10px 0 0; }
+  .empty li { margin: 10px 0; }
+
+  .sheet-wrap { position: fixed; inset: 0; z-index: 10; background: rgba(5, 3, 10, .65); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet {
+    width: 100%; max-width: 720px; max-height: 90vh; overflow: auto;
+    background: var(--panel); border: 1px solid var(--line); border-bottom: 0; border-radius: 22px 22px 0 0;
+    padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .sheet h2 { margin: 0 0 4px; font-size: 21px; }
+  .sheet .card { background: var(--bg); }
+  .field { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+  .field > label, .field > .lbl { font-size: 13px; color: var(--muted); }
+  .field input, .field select { min-height: 48px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; width: 100%; }
+  .check { display: flex; gap: 10px; align-items: center; margin-top: 14px; font-size: 15px; }
+  .check input { width: 22px; height: 22px; accent-color: var(--neon); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { min-height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); font-size: 14px; }
+  .chip[aria-pressed="true"] { background: var(--neon); color: var(--neon-ink); border-color: var(--neon); font-weight: 600; }
+  .actions { display: flex; gap: 10px; margin-top: 22px; }
+  .actions > * { flex: 1; }
+  .warn { margin-top: 10px; font-size: 13px; color: #ffd27a; }
+  .err { margin-top: 10px; font-size: 14px; color: var(--out); }
+  .group { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .group h3 { margin: 0 0 6px; font-size: 16px; }
+  .group p { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 20; background: var(--neon); color: var(--neon-ink); font-weight: 600; padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: 90vw; box-shadow: 0 0 24px rgba(57, 255, 136, .4); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Balan<span>ço</span></h1>
+    <button class="ghost icon" data-act="settings" aria-label="Ajustes e backup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div class="bar">
+  <button class="primary" data-act="import">Importar extrato</button>
+  <button class="add" data-act="add" aria-label="Novo lançamento">+</button>
+</div>
+
+<input type="file" id="file" multiple hidden>
+<input type="file" id="restoreFile" hidden>
+<div id="sheet" class="sheet-wrap" hidden><div class="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+/* Balanço — controle de entradas e saídas, 100% no aparelho.
+   Dados: IndexedDB "balanco" (store tx = lançamentos, store kv = regras/ajustes).
+   Valores sempre em centavos (inteiros) para não errar arredondamento.
+   Entrada de dados: extratos OFX ou CSV do BB, Inter e BTG, ou lançamento manual. */
+
+const APP_VERSION = '1.0';
+const BANKS = ['BB', 'Inter', 'BTG'];
+const BANK_NAME = { BB: 'Banco do Brasil', Inter: 'Inter', BTG: 'BTG Pactual' };
+const ACCOUNTS = [...BANKS, 'Dinheiro'];
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const MON3 = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+// Ordem importa: a primeira categoria cujo termo aparece na descrição vence.
+// in: só para entradas · neutral: não conta no balanço (dinheiro que só mudou de lugar).
+// early: checadas antes de reconhecer o seu próprio nome na descrição.
+// both: vale para entradas e saídas.
+const CATS = [
+  { id: 'rendimento', name: 'Rendimentos', in: true, early: true, kw: ['rendimento', 'rend pago', 'juros', 'remuneracao', 'dividendo', 'jcp'] },
+  { id: 'invest', name: 'Poupança / investimentos', neutral: true, early: true, kw: ['rende facil', 'aplicacao', 'resgate', 'poupanca', 'cdb', 'lci', 'lca', 'tesouro', 'porquinho', 'investimento', 'brasilprev'] },
+  { id: 'transf', name: 'Entre suas contas', neutral: true, early: true, kw: ['mesma titularidade', 'entre contas', 'conta propria'] },
+  { id: 'fatura', name: 'Fatura do cartão', early: true, kw: ['fatura', 'pagto cartao', 'pagamento cartao', 'pag cartao', 'pagamento de cartao'] },
+  // Pix para/de você mesmo sem o par encontrado (ex.: o outro lado cai no extrato do mês seguinte).
+  { id: 'propria', name: 'Para você mesmo', neutral: true, kw: [] },
+  { id: 'assinaturas', name: 'Assinaturas', kw: ['netflix', 'spotify', 'apple.com', 'apple com', 'itunes', 'youtube', 'google', 'amazon prime', 'prime video', 'disney', 'hbo', 'globoplay', 'deezer', 'adobe', 'canva', 'icloud', 'microsoft', 'chatgpt', 'openai', 'anthropic', 'claude.ai', 'dropbox', 'capcut', 'envato', 'epidemic'] },
+  { id: 'compras', name: 'Compras', kw: ['mercado livre', 'mercadolivre', 'mercadolibre', 'amazon', 'shopee', 'magalu', 'magazine luiza', 'aliexpress', 'shein', 'americanas', 'casas bahia', 'kabum', 'renner', 'riachuelo', 'zara', 'centauro', 'netshoes', 'decathlon', 'leroy merlin', 'kalunga', 'fast shop'] },
+  { id: 'alimentacao', name: 'Alimentação', kw: ['ifood', 'ifd*', 'restauran','lanchonete', 'padaria', 'panificadora', 'pizzaria', 'pizza', 'burger', 'burguer', 'mcdonald', 'mc donalds', 'subway', 'starbucks', 'cafeteria', 'churrascaria', 'sushi', 'acai', 'rappi', 'ze delivery', 'outback', 'coco bambu', 'spoleto', 'habib', 'giraffas', 'sorveteria', 'confeitaria', 'doceria', 'lanches', 'bistro'] },
+  { id: 'mercado', name: 'Mercado', kw: ['supermer', 'bahamas', 'mercearia', 'atacad', 'assai', 'carrefour', 'pao de acucar', 'hortifruti', 'sacolao', 'hipermerc', 'sams club', 'makro', 'zaffari', 'savegnago', 'muffato', 'angeloni', 'bistek', 'prezunic', 'guanabara', 'st marche', 'verdemar'] },
+  { id: 'transporte', name: 'Transporte', kw: ['uber', '99app', '99 pop', '99tecnologia', 'cabify', 'posto', 'combustiv', 'gasolina', 'shell', 'ipiranga', 'petrobras', 'estaciona', 'estapar', 'auto park', 'parking', 'zona azul', 'pedagio', 'sem parar', 'conectcar', 'veloe', 'taggy', 'metro', 'bilhete unico', 'cptm', 'onibus', 'buser', 'clickbus'] },
+  { id: 'casa', name: 'Casa e contas', kw: ['energia', 'eletric', 'cemig', 'enel', 'copel', 'celesc', 'coelba', 'celpe', 'cpfl', 'equatorial', 'energisa', 'neoenergia', 'sabesp', 'copasa', 'sanepar', 'cedae', 'embasa', 'saneamento', 'condominio', 'aluguel', 'comgas', 'ultragaz', 'liquigas', 'internet', 'vero s a', 'vero internet', 'vivo','telefonica', 'claro s', 'tim s', 'net servicos', 'sky', 'iptu'] },
+  { id: 'saude', name: 'Saúde e academia', kw: ['farmacia', 'drogaria', 'droga raia', 'drogasil', 'pague menos', 'panvel', 'pacheco', 'hospital', 'clinica', 'odonto', 'dentista', 'laborat', 'unimed', 'amil', 'sulamerica', 'hapvida', 'psicolog', 'medic', 'smart fit', 'smartfit', 'bluefit', 'academia', 'gympass', 'wellhub', 'totalpass'] },
+  { id: 'impostos', name: 'Impostos e tarifas', kw: ['simples nacional', 'pgmei', 'das ', 'darf', 'inss', 'iof', 'tarifa', 'cesta de servicos', 'anuidade', 'juros', 'multa', 'ipva', 'licenciamento', 'detran', 'receita federal', 'imposto', 'taxa', 'encargo'] },
+  { id: 'lazer', name: 'Lazer e viagens', kw: ['cinema', 'cinemark', 'cineart', 'ingresso', 'sympla', 'eventim', 'teatro', 'hotel', 'pousada', 'airbnb', 'booking', 'decolar', 'latam', 'gol linhas', 'voegol', 'azul linhas', 'voeazul', '123milhas', 'maxmilhas', 'steam', 'playstation', 'xbox', 'nintendo'] },
+  { id: 'educacao', name: 'Educação', kw: ['escola', 'colegio', 'faculdade', 'universidade', 'curso', 'udemy', 'hotmart', 'alura', 'livraria', 'kiwify', 'eduzz'] },
+  { id: 'pix', name: 'Pix e transferências', kw: ['pix', 'transf', 'ted ', 'doc '] },
+  { id: 'receita', name: 'Recebimentos', in: true, kw: [] },
+  { id: 'outros', name: 'Outros', kw: [] },
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+// Categorias que alguns bancos já escrevem no extrato -> nossas categorias.
+const BANK_HINTS = {
+  'supermercado': 'mercado', 'mercado': 'mercado', 'alimentacao': 'alimentacao', 'restaurantes': 'alimentacao', 'restaurante': 'alimentacao',
+  'saude': 'saude', 'farmacia': 'saude', 'transporte': 'transporte', 'tarifas': 'impostos', 'impostos': 'impostos', 'impostos e taxas': 'impostos',
+  'lazer': 'lazer', 'entretenimento': 'lazer', 'viagem': 'lazer', 'viagens': 'lazer', 'educacao': 'educacao', 'compras': 'compras',
+  'vestuario': 'compras', 'moradia': 'casa', 'casa': 'casa', 'contas': 'casa', 'assinaturas': 'assinaturas', 'investimentos': 'invest',
+};
+
+// ---------- utilidades ----------
+const $ = (s, el = document) => el.querySelector(s);
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const num = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = c => brl.format(c / 100);
+const plain = c => num.format(c / 100);
+const signed = c => (c > 0 ? '+ ' : c < 0 ? '− ' : '') + money(Math.abs(c));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+// "Pix - Enviado 12/11 15:30 Fulano" -> "pix enviado fulano": a mesma "chave" para lançamentos parecidos.
+const keyOf = desc => norm(desc).replace(/\d+/g, ' ').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fmtDate = s => s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : '';
+const dayDiff = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 86400000);
+const isNeutral = t => !!CAT[t.cat]?.neutral;
+const fits = (cat, amount) => { const c = CAT[cat]; return !!c && (c.neutral || c.both || (amount >= 0 ? c.in || c.id === 'outros' : !c.in)); };
+let idSeq = 0;
+const newId = () => 'm|' + Date.now().toString(36) + (idSeq++).toString(36);
+
+function toast(msg, ms = 2600) {
+  const el = $('#toast'); el.textContent = msg; el.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, ms);
+}
+const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+// Valores brasileiros e de OFX: "1.234,56", "-1234.56", "R$ 50,00 D", "50,00-"
+function parseNum(s) {
+  if (s == null) return null;
+  let t = String(s).trim().replace(/R\$|\s| /g, '');
+  if (!t) return null;
+  let neg = false;
+  if (/^\(.*\)$/.test(t)) { neg = true; t = t.slice(1, -1); }
+  if (/[dD]$/.test(t)) { neg = true; t = t.slice(0, -1); } else if (/[cC]$/.test(t)) t = t.slice(0, -1);
+  if (t.endsWith('-')) { neg = true; t = t.slice(0, -1); }
+  if (t.startsWith('-')) { neg = !neg; t = t.slice(1); } else if (t.startsWith('+')) t = t.slice(1);
+  const lc = t.lastIndexOf(','), ld = t.lastIndexOf('.');
+  if (lc >= 0 && ld >= 0) t = lc > ld ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  else if (lc >= 0) t = t.replace(/\./g, '').replace(',', '.');
+  else if (ld >= 0 && /^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  if (!/^\d+(\.\d+)?$/.test(t)) return null;
+  const cents = Math.round(parseFloat(t) * 100);
+  return neg ? -cents : cents;
+}
+function parseDate(s) {
+  s = String(s || '').trim();
+  let m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return `${y}-${pad(+m[2])}-${pad(+m[1])}`; }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+function decodeText(buf) {
+  let text;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch { text = new TextDecoder('windows-1252').decode(buf); }
+  return text.replace(/^﻿/, '');
+}
+const unXml = s => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'");
+
+// ---------- leitura de extratos ----------
+function parseOFX(text) {
+  const rows = [];
+  const bankid = ((text.match(/<BANKID>\s*([^<\r\n]+)/i) || [])[1] || '').trim();
+  const kind = /<CCSTMTRS>|CREDITCARDMSGSRSV1/i.test(text) ? 'cartao' : 'conta';
+  for (let part of text.split(/<STMTTRN>/i).slice(1)) {
+    part = part.split(/<\/STMTTRN>/i)[0];
+    const g = tag => { const m = part.match(new RegExp('<' + tag + '>\\s*([^<\\r\\n]*)', 'i')); return m ? unXml(m[1].trim()) : ''; };
+    const dt = g('DTPOSTED');
+    let amount = parseNum(g('TRNAMT'));
+    if (!/^\d{8}/.test(dt) || amount == null || amount === 0) continue;
+    if (amount > 0 && /^(DEBIT|PAYMENT|FEE|SRVCHG|ATM|POS|CHECK)$/i.test(g('TRNTYPE')) && kind === 'conta') amount = -amount;
+    const name = g('NAME'), memo = g('MEMO');
+    let desc = name && memo ? (norm(memo).includes(norm(name)) ? memo : norm(name).includes(norm(memo)) ? name : name + ' · ' + memo) : (name || memo || g('TRNTYPE'));
+    rows.push({ date: `${dt.slice(0, 4)}-${dt.slice(4, 6)}-${dt.slice(6, 8)}`, amount, desc: desc.replace(/\s+/g, ' ').trim() });
+  }
+  return { rows, bankid, kind };
+}
+
+function splitLine(line, d) {
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === d) { out.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const sample = lines.slice(0, 40).join('\n');
+  const delim = [';', '\t', ','].map(d => [d, sample.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  let head = -1, col = null;
+  for (let i = 0; i < Math.min(lines.length, 40) && head < 0; i++) {
+    const cells = splitLine(lines[i], delim).map(norm);
+    const date = cells.findIndex(c => /^data/.test(c));
+    if (date < 0) continue;
+    const value = cells.findIndex(c => /^(valor|montante|quantia)/.test(c) && !/saldo/.test(c));
+    const credit = cells.findIndex(c => /^(credito|entrada)/.test(c));
+    const debit = cells.findIndex(c => /^(debito|saida)/.test(c));
+    if (value < 0 && (credit < 0 || debit < 0)) continue;
+    const used = new Set([date, value, credit, debit]);
+    const desc = cells.map((c, j) => j).filter(j => !used.has(j) && /historico|descricao|lancamento|detalhe|estabelecimento|memo|titulo|favorecido|identificacao/.test(cells[j]));
+    const type = cells.findIndex((c, j) => !used.has(j) && /^(tipo|d\/c|natureza|inf)/.test(c));
+    head = i; col = { date, value, credit, debit, desc, type };
+  }
+  if (head < 0) throw new Error('Não reconheci as colunas deste arquivo.');
+  const rows = [];
+  for (const line of lines.slice(head + 1)) {
+    const c = splitLine(line, delim);
+    const date = parseDate(c[col.date]);
+    if (!date) continue;
+    let amount;
+    if (col.value >= 0) amount = parseNum(c[col.value]);
+    else { const cr = parseNum(c[col.credit]) || 0, db = parseNum(c[col.debit]) || 0; amount = Math.abs(cr) - Math.abs(db); }
+    if (amount == null || amount === 0) continue;
+    if (col.type >= 0 && amount > 0 && /^d/i.test(norm(c[col.type]))) amount = -amount;
+    const parts = [];
+    for (const j of col.desc) { const v = (c[j] || '').replace(/\s+/g, ' ').trim(); if (v && !parts.some(p => norm(p).includes(norm(v)))) parts.push(v); }
+    const desc = parts.join(' · ') || 'Lançamento';
+    if (/^saldo|^s a l d o/.test(norm(desc).trim())) continue; // linhas de saldo do BB/Inter não são lançamentos
+    rows.push({ date, amount, desc });
+  }
+  return { rows, bankid: '', kind: 'conta' };
+}
+
+// PDF em formato de tabela (ex.: BTG): cada linha tem data, [categoria do banco], [tipo], descrição e valor.
+// items = textos da página com posição (x, y). A data e o valor na mesma altura marcam uma linha;
+// os outros textos vão para a linha mais próxima (descrições quebradas em duas linhas incluídas).
+function pdfRowsFromItems(items) {
+  const dateRe = /^(\d{2}\/\d{2}\/\d{4})(\s+\d{2}[h:]\d{2})?$/;
+  const valRe = /^[-+]?\s*R\$\s*-?\s*[\d.]+,\d{2}$/;
+  const anchors = [];
+  for (const d of items.filter(i => dateRe.test(i.s))) {
+    const v = items.filter(i => valRe.test(i.s) && Math.abs(i.y - d.y) < 3 && i.x > d.x).sort((a, b) => b.x - a.x)[0];
+    if (v) anchors.push({ d, v, parts: [] });
+  }
+  if (!anchors.length) return [];
+  const used = new Set(anchors.flatMap(a => [a.d, a.v]));
+  for (const it of items) {
+    if (used.has(it)) continue;
+    let best = null, dist = 9;
+    for (const a of anchors) {
+      const dy = Math.abs(it.y - a.d.y);
+      if (dy < dist && it.x > a.d.x + a.d.w - 1 && it.x < a.v.x) { best = a; dist = dy; }
+    }
+    if (best) best.parts.push(it);
+  }
+  // colunas = posições x onde os textos começam (categoria, tipo, descrição)
+  const starts = new Map();
+  for (const a of anchors) for (const p of a.parts) { const k = Math.round(p.x / 4) * 4; starts.set(k, (starts.get(k) || 0) + 1); }
+  const cols = [...starts.entries()].filter(([, n]) => n >= 2).map(([x]) => x).sort((a, b) => a - b);
+  const colOf = x => { let c = 0; for (let i = 0; i < cols.length; i++) if (x >= cols[i] - 3) c = i; return c; };
+  const rows = [];
+  for (const a of anchors) {
+    const amount = parseNum(a.v.s), date = parseDate(a.d.s);
+    if (!amount || !date) continue;
+    const byCol = cols.map(() => []);
+    for (const p of a.parts.sort((p, q) => q.y - p.y || p.x - q.x)) (byCol[colOf(p.x)] || (byCol[0] ||= [])).push(p.s);
+    const cells = byCol.map(c => c.join(' ').replace(/\s+/g, ' ').trim());
+    let hint = '', kind = '', text = '';
+    if (cells.length >= 3) { hint = cells[0]; kind = cells[1]; text = cells.slice(2).join(' '); }
+    else if (cells.length === 2) { kind = cells[0]; text = cells[1]; }
+    else text = cells[0] || '';
+    if (/^saldo/i.test(norm(text)) || (!kind && !text)) continue; // "Saldo Diário" não é lançamento
+    rows.push({ date, amount, desc: [kind, text].filter(Boolean).join(' · '), hint });
+  }
+  return rows;
+}
+
+async function parsePDF(buf) {
+  const pdfjs = await import('./vendor/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs';
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), isEvalSupported: false, disableFontFace: true }).promise;
+  const rows = []; let text = '';
+  for (let p = 1; p <= doc.numPages; p++) {
+    const tc = await (await doc.getPage(p)).getTextContent();
+    const items = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str.trim(), x: i.transform[4], y: i.transform[5], w: i.width }));
+    text += items.map(i => i.s).join(' ') + '\n';
+    rows.push(...pdfRowsFromItems(items));
+  }
+  await doc.destroy();
+  if (!rows.length) throw new Error('Não encontrei lançamentos neste PDF. Me mande o arquivo para eu ensinar o app a ler esse banco.');
+  return { rows, bankid: /btg pactual/i.test(text) ? '208' : '', kind: 'conta', text };
+}
+
+function guessAccount(name, text, bankid) {
+  const n = norm(name);
+  if (bankid === '001' || bankid === '1' || /banco do brasil|bancodobrasil|\bbb\b/.test(n)) return 'BB';
+  if (bankid === '077' || bankid === '77' || /inter/.test(n)) return 'Inter';
+  if (bankid === '208' || /btg/.test(n)) return 'BTG';
+  const t = norm(text.slice(0, 3000));
+  if (/btg pactual|banco btg/.test(t)) return 'BTG';
+  if (/banco do brasil/.test(t)) return 'BB';
+  if (/banco inter|\binter\b/.test(t)) return 'Inter';
+  return lsGet('lastAccount') || 'BB';
+}
+
+// Identificador estável: importar o mesmo extrato de novo não duplica nada.
+function assignIds(batch) {
+  const seen = new Map();
+  for (const r of batch.rows) {
+    const base = `${batch.account}|${r.date}|${r.amount}|${keyOf(r.desc) || norm(r.desc)}`;
+    const n = (seen.get(base) || 0) + 1; seen.set(base, n);
+    r.id = base + '|' + n;
+  }
+}
+
+// ---------- banco de dados local ----------
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('balanco', 1);
+      r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('tx', { keyPath: 'id' }); d.createObjectStore('kv'); };
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  run(store, mode, fn) {
+    return new Promise((res, rej) => {
+      const tr = this.db.transaction(store, mode); const st = tr.objectStore(store);
+      const out = fn(st);
+      tr.oncomplete = () => res(out && 'result' in out ? out.result : undefined);
+      tr.onerror = () => rej(tr.error);
+    });
+  },
+  all: s => DB.run(s, 'readonly', st => st.getAll()),
+  get: (s, k) => DB.run(s, 'readonly', st => st.get(k)),
+  put: (s, v, k) => DB.run(s, 'readwrite', st => { k === undefined ? st.put(v) : st.put(v, k); }),
+  putMany: (s, vs) => DB.run(s, 'readwrite', st => { for (const v of vs) st.put(v); }),
+  del: (s, k) => DB.run(s, 'readwrite', st => { st.delete(k); }),
+  clear: s => DB.run(s, 'readwrite', st => { st.clear(); }),
+};
+
+const state = { tx: [], rules: {}, settings: {} };
+const now = new Date();
+const view = { y: now.getFullYear(), m: now.getMonth(), mode: 'month', acct: lsGet('acct') || 'all', cat: null };
+const saveRules = () => DB.put('kv', state.rules, 'rules');
+const saveSettings = () => DB.put('kv', state.settings, 'settings');
+const byId = id => state.tx.find(t => t.id === id);
+
+function autoCat(t) {
+  const rule = state.rules[keyOf(t.desc)];
+  if (rule && fits(rule, t.amount)) return rule;
+  const n = norm(t.desc) + ' ';
+  const hit = c => c.kw.length && c.kw.some(k => n.includes(k)) && fits(c.id, t.amount);
+  for (const c of CATS) if (c.early && hit(c)) return c.id;
+  if (isSelf(t.desc)) return 'propria';
+  // Pix para uma "instituição de pagamento" (iFood Pago, etc.): o nome é do banco, não de quem recebeu.
+  if (/instituicao de pag/.test(n)) return t.amount >= 0 ? 'receita' : 'pix';
+  const h = t.hint && BANK_HINTS[norm(t.hint)];       // categoria que o próprio banco deu (BTG)
+  if (h && fits(h, t.amount)) return h;
+  for (const c of CATS) if (!c.early && hit(c)) return c.id;
+  return t.amount >= 0 ? 'receita' : 'outros';
+}
+
+// O seu nome aparece nas linhas da poupança do BB ("Aplicação Poupança · 07/10 17:00 SEU NOME").
+// Com ele, Pix para você mesmo em outro banco vira "Outra conta sua" em vez de gasto com terceiros.
+function inferHolder(rows) {
+  const counts = new Map();
+  for (const r of rows) {
+    if (!/^(transferido da poupan|aplica[cç][aã]o poupan)/i.test(r.desc)) continue;
+    const name = keyOf(splitDesc(r.desc).title);
+    if (name.split(' ').length >= 2) counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+function isSelf(desc) {
+  const holder = state.settings.holder;
+  if (!holder) return false;
+  const name = keyOf(splitDesc(desc).title);
+  return name.length >= 8 && (name === holder || holder.startsWith(name) || name.startsWith(holder));
+}
+
+// Mesmo valor saindo de uma conta e entrando na outra em até 3 dias = transferência entre as suas contas
+// (o BB lança Pix de fim de semana no dia útil seguinte). Fica com o par de data mais próxima.
+function detectTransfers() {
+  const cand = state.tx.filter(t => !t.manual && !t.pair && (!isNeutral(t) || t.cat === 'propria') && t.account !== 'Dinheiro');
+  // Precisa ter cara de transferência sua: o seu nome em um dos lados (ou, sem nome conhecido, Pix/TED nos dois).
+  const looksSelf = t => isSelf(t.desc) || /mesma titularidade|entre contas|conta propria/.test(norm(t.desc));
+  const looksTransfer = t => /pix|transf|ted\b|doc\b/.test(norm(t.desc));
+  const pairOk = (a, b) => state.settings.holder ? (looksSelf(a) || looksSelf(b)) && looksTransfer(a) && looksTransfer(b)
+    : looksTransfer(a) && looksTransfer(b);
+  const byAmt = new Map();
+  for (const t of cand) { const k = Math.abs(t.amount); if (!byAmt.has(k)) byAmt.set(k, []); byAmt.get(k).push(t); }
+  const changed = [];
+  for (const list of byAmt.values()) {
+    if (list.length < 2) continue;
+    for (const a of list) {
+      if (a.pair || a.amount >= 0) continue;
+      const b = list.filter(x => !x.pair && x.amount === -a.amount && x.account !== a.account && Math.abs(dayDiff(x.date, a.date)) <= 3 && pairOk(a, x))
+        .sort((p, q) => Math.abs(dayDiff(p.date, a.date)) - Math.abs(dayDiff(q.date, a.date)))[0];
+      if (b) { a.pair = b.id; b.pair = a.id; a.cat = b.cat = 'transf'; changed.push(a, b); }
+    }
+  }
+  return changed;
+}
+
+// ---------- contas do mês ----------
+const monthKey = (y, m) => `${y}-${pad(m + 1)}`;
+const inAcct = t => view.acct === 'all' || t.account === view.acct;
+const monthTx = (y, m) => { const p = monthKey(y, m); return state.tx.filter(t => t.date.startsWith(p) && inAcct(t)); };
+function totals(list) {
+  let i = 0, o = 0;
+  for (const t of list) { if (isNeutral(t)) continue; if (t.amount > 0) i += t.amount; else o -= t.amount; }
+  return { i, o, r: i - o };
+}
+
+// ---------- telas ----------
+function render() {
+  const main = $('#main');
+  if (!state.tx.length) { main.innerHTML = emptyHTML(); return; }
+  main.innerHTML = controlsHTML() + (view.mode === 'year' ? yearHTML() : monthHTML());
+}
+
+function controlsHTML() {
+  const label = view.mode === 'year' ? String(view.y) : `${MONTHS[view.m][0].toUpperCase() + MONTHS[view.m].slice(1)} ${view.y}`;
+  const accts = ['all', ...ACCOUNTS.filter(a => state.tx.some(t => t.account === a))];
+  return `
+    <div class="nav">
+      <button class="ghost icon" data-act="prev" aria-label="Anterior">‹</button>
+      <div class="label">${label}</div>
+      <button class="ghost icon" data-act="next" aria-label="Próximo">›</button>
+    </div>
+    <div class="controls">
+      <div class="seg">
+        <button data-act="mode" data-v="month" aria-pressed="${view.mode === 'month'}">Mês</button>
+        <button data-act="mode" data-v="year" aria-pressed="${view.mode === 'year'}">Ano</button>
+      </div>
+      <div class="seg">${accts.map(a => `<button data-act="acct" data-v="${a}" aria-pressed="${view.acct === a}">${a === 'all' ? 'Todas' : a}</button>`).join('')}</div>
+    </div>`;
+}
+
+function monthHTML() {
+  const list = monthTx(view.y, view.m);
+  const t = totals(list);
+  const pm = view.m === 0 ? [view.y - 1, 11] : [view.y, view.m - 1];
+  const prevList = monthTx(pm[0], pm[1]);
+  const prev = totals(prevList);
+  const today = new Date();
+  const lastDay = new Date(view.y, view.m + 1, 0).getDate();
+  const isCurrent = today.getFullYear() === view.y && today.getMonth() === view.m;
+  const closed = !isCurrent || today.getDate() >= lastDay - 1;
+  const title = closed ? `Balanço de ${MONTHS[view.m]}` : `Até agora em ${MONTHS[view.m]}`;
+
+  let compare = '';
+  if (closed && prevList.length && prev.o > 0 && t.o > 0) {
+    const pct = Math.round((t.o - prev.o) / prev.o * 100);
+    compare = pct === 0 ? `Saídas iguais às de ${MONTHS[pm[1]]}.`
+      : `Saiu ${Math.abs(pct)}% ${pct > 0 ? 'a mais' : 'a menos'} que em ${MONTHS[pm[1]]}.`;
+  }
+  const perAcct = view.acct === 'all' ? ACCOUNTS.map(a => {
+    const tt = totals(list.filter(x => x.account === a));
+    return tt.i || tt.o ? `<span><b>${a}</b> <span class="in">+${plain(tt.i)}</span> · <span class="out">−${plain(tt.o)}</span></span>` : '';
+  }).join('') : '';
+
+  if (!list.length) {
+    return `<div class="card hero"><div class="eyebrow">${title}</div><div class="note">Nenhum lançamento neste mês${view.acct !== 'all' ? ' nesta conta' : ''}. Importe o extrato do mês para ver o balanço.</div></div>`;
+  }
+
+  // para onde foi o dinheiro
+  const byCat = new Map();
+  for (const x of list) if (x.amount < 0 && !isNeutral(x)) byCat.set(x.cat, (byCat.get(x.cat) || 0) - x.amount);
+  const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+  const max = cats.length ? cats[0][1] : 1;
+  const catsHTML = cats.map(([id, v]) => `
+    <button class="cat ${view.cat === id ? 'sel' : ''}" data-act="cat" data-v="${id}">
+      <span>${esc(CAT[id]?.name || id)}</span>
+      <span class="v">${money(v)} <span class="muted small">${t.o ? Math.round(v / t.o * 100) : 0}%</span></span>
+      <span class="track"><span class="fill" style="display:block;width:${Math.max(2, v / max * 100)}%"></span></span>
+    </button>`).join('');
+
+  // lançamentos por dia
+  const shown = list.filter(x => !view.cat || x.cat === view.cat).sort((a, b) => b.date.localeCompare(a.date) || a.amount - b.amount);
+  const days = new Map();
+  for (const x of shown) { if (!days.has(x.date)) days.set(x.date, []); days.get(x.date).push(x); }
+  const wd = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const daysHTML = [...days.entries()].map(([d, items]) => `
+    <div class="day"><h3>${esc(wd.format(new Date(d + 'T12:00:00')))}</h3>
+    ${items.map(txHTML).join('')}</div>`).join('');
+
+  const neutralSum = list.filter(isNeutral).length;
+  const investNet = -list.filter(x => x.cat === 'invest').reduce((s, x) => s + x.amount, 0);
+  const investLine = investNet > 0 ? `<div class="note">Você guardou <b class="in">${money(investNet)}</b> na poupança/investimentos.</div>`
+    : investNet < 0 ? `<div class="note">Você tirou <b class="out">${money(-investNet)}</b> da poupança/investimentos.</div>` : '';
+  return `
+    <div class="card hero">
+      <div class="eyebrow">${title}</div>
+      <div class="big ${t.r >= 0 ? 'in glow' : 'out'}">${signed(t.r)}</div>
+      <div class="note">${t.r >= 0 ? 'Sobrou dinheiro.' : 'Saiu mais do que entrou.'} ${compare}</div>
+      ${investLine}
+      ${perAcct ? `<div class="accts">${perAcct}</div>` : ''}
+    </div>
+    <div class="split">
+      <div class="card"><div class="eyebrow">Entrou</div><div class="mid in">${money(t.i)}</div></div>
+      <div class="card"><div class="eyebrow">Saiu</div><div class="mid out">${money(t.o)}</div></div>
+    </div>
+    ${cats.length ? `<h2 class="sec">Para onde foi</h2><div class="card">${catsHTML}</div>` : ''}
+    <h2 class="sec">Lançamentos</h2>
+    ${view.cat ? `<div class="filter"><span>Só <b>${esc(CAT[view.cat]?.name)}</b></span><button class="ghost" data-act="cat" data-v="">Ver todos</button></div>` : ''}
+    ${neutralSum ? `<div class="note small">Itens em cinza (transferências entre suas contas, poupança e investimentos) não contam no balanço.</div>` : ''}
+    ${daysHTML}`;
+}
+
+// "Compra com Cartão - 20/10 18:40 AUTO POSTO SHELL" -> título "AUTO POSTO SHELL", tipo "Compra com cartão"
+const KINDS = [
+  [/^compra com cart[aã]o/i, 'Compra no cartão'], [/^compra no d[eé]bito( autorizada)?/i, 'Compra no débito'],
+  [/^pix\s*-?\s*enviado/i, 'Pix enviado'], [/^pix\s*-?\s*recebido/i, 'Pix recebido'],
+  [/^transferido da poupan[cç]a/i, 'Resgate da poupança'], [/^aplica[cç][aã]o poupan[cç]a/i, 'Aplicação na poupança'],
+  [/^aplica[cç][aã]o:?/i, 'Aplicação'], [/^resgate:?/i, 'Resgate'], [/^pagamento (de )?fatura\s*-?/i, 'Fatura do cartão'],
+  [/^pagamento de boleto/i, 'Boleto'], [/^pagamento efetuado/i, 'Pagamento'], [/^pagto/i, 'Pagamento'],
+  [/^transfer[eê]ncia (enviada|recebida)/i, 'Transferência'], [/^ted|^doc\b/i, 'Transferência'],
+];
+function splitDesc(desc) {
+  let rest = desc.trim(), kind = '';
+  for (const [re, label] of KINDS) if (re.test(rest)) { kind = label; rest = rest.replace(re, ''); break; }
+  rest = rest.replace(/^[\s\-·:]+/, '').replace(/^\d{2}\/\d{2}(\/\d{2,4})?(\s+\d{2}:\d{2})?\s*/, '').replace(/^[\s\-·:]+/, '')
+    .replace(/\s*·\s*(pagamento efetuado|pix (enviado|recebido))\b.*$/i, '')
+    .replace(/^"|"$/g, '')                    // Inter: "Cp :18236120-NOME"
+    .replace(/^cp\s*:\s*\d+\s*-\s*/i, '')
+    .replace(/^\d{11,14}\s+/, '')             // BB: CPF/CNPJ antes do nome
+    .trim();
+  const card = norm(desc).match(/fatura cartao (\w+)/);
+  if (kind === 'Fatura do cartão' && card) rest = 'Cartão ' + card[1][0].toUpperCase() + card[1].slice(1);
+  return { title: rest || desc, kind };
+}
+
+function txHTML(x) {
+  const c = CAT[x.cat];
+  const { title, kind } = splitDesc(x.desc);
+  return `<button class="tx ${isNeutral(x) ? 'neutral' : ''}" data-act="edit" data-id="${esc(x.id)}">
+    <div class="d"><div class="t">${esc(title)}</div>
+    <div class="m"><span class="badge">${esc(x.account)}</span>${esc(c ? c.name : 'Outros')}${kind ? ' · ' + esc(kind) : ''}</div></div>
+    <div class="v ${x.amount >= 0 ? 'in' : 'out'}">${signed(x.amount)}</div></button>`;
+}
+
+function yearHTML() {
+  let ti = 0, to = 0, rows = '';
+  for (let m = 0; m < 12; m++) {
+    const list = monthTx(view.y, m);
+    if (!list.length) continue;
+    const t = totals(list); ti += t.i; to += t.o;
+    rows += `<button class="yr" data-act="openMonth" data-v="${m}"><span>${MON3[m]}</span><span class="in">${plain(t.i)}</span><span class="out">${plain(t.o)}</span><span class="${t.r >= 0 ? 'in' : 'out'}">${plain(t.r)}</span></button>`;
+  }
+  if (!rows) return `<div class="card hero"><div class="eyebrow">${view.y}</div><div class="note">Nenhum lançamento neste ano.</div></div>`;
+  return `
+    <div class="card hero">
+      <div class="eyebrow">Resultado de ${view.y}</div>
+      <div class="big ${ti - to >= 0 ? 'in glow' : 'out'}">${signed(ti - to)}</div>
+      <div class="note">Entrou ${money(ti)} · Saiu ${money(to)}</div>
+    </div>
+    <div class="card">
+      <div class="yr head"><span>Mês</span><span>Entrou</span><span>Saiu</span><span>Saldo</span></div>
+      ${rows}
+      <div class="yr total"><span>Total</span><span class="in">${plain(ti)}</span><span class="out">${plain(to)}</span><span class="${ti - to >= 0 ? 'in' : 'out'}">${plain(ti - to)}</span></div>
+    </div>
+    <div class="note small">Toque em um mês para ver os detalhes. Valores em R$.</div>`;
+}
+
+function emptyHTML() {
+  return `<div class="card hero empty">
+    <div class="eyebrow">Comece aqui</div>
+    <div class="mid">Seu balanço do mês, sem conectar nada.</div>
+    <ol>
+      <li>No app ou site do <b>Banco do Brasil</b>, do <b>Inter</b> e do <b>BTG</b>, abra o extrato do mês e <b>exporte em OFX</b> (ou CSV / planilha). Salve no app Arquivos.</li>
+      <li>Toque em <b>Importar extrato</b> e escolha os arquivos (pode escolher os dois de uma vez).</li>
+      <li>Pronto: o app separa o que entrou e o que saiu e organiza por categoria.</li>
+    </ol>
+    <div class="note">Tudo fica guardado só neste aparelho. Nada é enviado para a internet. Importar o mesmo extrato de novo não duplica nada.</div>
+  </div>`;
+}
+
+// ---------- folhas (sheets) ----------
+const sheetWrap = $('#sheet'), sheet = $('.sheet', sheetWrap);
+let sheetCtx = null;
+function openSheet(html, ctx = null) { sheet.innerHTML = html; sheetCtx = ctx; sheetWrap.hidden = false; sheet.scrollTop = 0; }
+function closeSheet() { sheetWrap.hidden = true; sheet.innerHTML = ''; sheetCtx = null; }
+sheetWrap.addEventListener('click', e => { if (e.target === sheetWrap) closeSheet(); });
+
+// Importação
+async function handleFiles(files) {
+  const batches = [], errors = [];
+  for (const f of files) {
+    try {
+      const buf = await f.arrayBuffer();
+      const head = new Uint8Array(buf.slice(0, 5));
+      if (head[0] === 0x50 && head[1] === 0x4b) throw new Error('Planilha Excel (.xlsx) ainda não é lida. Exporte em OFX, CSV ou PDF.');
+      let parsed, text;
+      if (String.fromCharCode(...head) === '%PDF-') { parsed = await parsePDF(buf); text = parsed.text; }
+      else { text = decodeText(buf); parsed = /OFXHEADER|<OFX>/i.test(text) ? parseOFX(text) : parseCSV(text); }
+      if (!parsed.rows.length) throw new Error('Nenhum lançamento encontrado no arquivo.');
+      batches.push({ file: f.name, account: guessAccount(f.name, text, parsed.bankid), kind: parsed.kind, rows: parsed.rows });
+    } catch (e) { errors.push({ file: f.name, msg: e.message || String(e) }); }
+  }
+  showImport({ batches, errors });
+}
+
+function showImport(ctx) {
+  const ids = new Set(state.tx.map(t => t.id));
+  const html = ctx.batches.map((b, i) => {
+    assignIds(b);
+    const fresh = b.rows.filter(r => !ids.has(r.id)).length;
+    const dates = b.rows.map(r => r.date).sort();
+    let inn = 0, out = 0; for (const r of b.rows) r.amount > 0 ? inn += r.amount : out -= r.amount;
+    return `<div class="card">
+      <div class="eyebrow">${esc(b.file)}</div>
+      <div style="margin-top:6px">${b.rows.length} lançamentos · ${fmtDate(dates[0])} a ${fmtDate(dates[dates.length - 1])}</div>
+      <div class="small muted"><span class="in">+${plain(inn)}</span> · <span class="out">−${plain(out)}</span> · ${fresh} novos${b.rows.length - fresh ? ` · ${b.rows.length - fresh} já estavam no app` : ''}</div>
+      ${b.kind === 'cartao' ? `<div class="warn">Parece extrato de cartão de crédito. Se você paga a fatura pela conta, importar os dois conta o mesmo gasto duas vezes.</div>` : ''}
+      <div class="field"><span class="lbl">De qual conta é?</span>
+        <div class="seg">${BANKS.map(a => `<button data-act="batchAcct" data-i="${i}" data-v="${a}" aria-pressed="${b.account === a}">${a}</button>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+  const errs = ctx.errors.map(e => `<div class="err"><b>${esc(e.file)}</b>: ${esc(e.msg)}</div>`).join('');
+  const total = ctx.batches.reduce((s, b) => s + b.rows.filter(r => !ids.has(r.id)).length, 0);
+  openSheet(`
+    <h2>Importar extrato</h2>
+    <div class="muted small">Confira a conta de cada arquivo antes de salvar.</div>
+    ${html}${errs}
+    <div class="actions">
+      <button class="ghost" data-act="close">Cancelar</button>
+      ${ctx.batches.length ? `<button class="primary" data-act="commitImport" ${total ? '' : 'disabled'}>${total ? `Salvar ${total}` : 'Nada novo'}</button>` : ''}
+    </div>`, { type: 'import', ...ctx });
+}
+
+async function commitImport(ctx) {
+  const existing = new Set(state.tx.map(t => t.id));
+  const add = [];
+  if (!state.settings.holder) {
+    const holder = inferHolder(ctx.batches.flatMap(b => b.rows));
+    if (holder) { state.settings.holder = holder; await saveSettings(); }
+  }
+  for (const b of ctx.batches) {
+    assignIds(b);
+    lsSet('lastAccount', b.account);
+    for (const r of b.rows) {
+      if (existing.has(r.id)) continue;
+      existing.add(r.id);
+      const t = { id: r.id, account: b.account, date: r.date, amount: r.amount, desc: r.desc, at: Date.now() };
+      if (r.hint) t.hint = r.hint;
+      t.cat = autoCat(t);
+      add.push(t);
+    }
+  }
+  state.tx.push(...add);
+  const changed = detectTransfers();
+  await DB.putMany('tx', [...new Set([...add, ...changed])]);
+  closeSheet();
+  if (add.length) {
+    const latest = add.map(t => t.date).sort().pop();
+    view.y = +latest.slice(0, 4); view.m = +latest.slice(5, 7) - 1; view.mode = 'month'; view.cat = null;
+  }
+  render();
+  toast(`${add.length} lançamentos salvos`);
+}
+
+// Editar lançamento
+function showEdit(t) {
+  const options = CATS.filter(c => fits(c.id, t.amount));
+  openSheet(`
+    <h2 class="${t.amount >= 0 ? 'in' : 'out'}">${signed(t.amount)}</h2>
+    <div>${esc(t.desc)}</div>
+    <div class="small muted" style="margin-top:4px">${fmtDate(t.date)} · ${esc(t.account)}${t.pair ? ' · par de uma transferência entre suas contas' : ''}</div>
+    <div class="field"><span class="lbl">Categoria</span>
+      <div class="chips">${options.map(c => `<button class="chip" data-act="pickCat" data-v="${c.id}" aria-pressed="${t.cat === c.id}">${esc(c.name)}</button>`).join('')}</div>
+    </div>
+    <label class="check"><input type="checkbox" id="applyAll" checked> Usar sempre para lançamentos parecidos</label>
+    <div class="actions">
+      <button class="ghost danger" data-act="deleteTx">Apagar</button>
+      <button class="primary" data-act="saveEdit">Salvar</button>
+    </div>`, { type: 'edit', id: t.id, cat: t.cat });
+}
+
+async function saveEdit(ctx) {
+  const t = byId(ctx.id); if (!t) return closeSheet();
+  const cat = ctx.cat, applyAll = $('#applyAll')?.checked;
+  const changed = new Set([t]);
+  if (t.pair && cat !== 'transf') {
+    const p = byId(t.pair);
+    if (p) { p.pair = null; p.manual = true; p.cat = autoCat({ ...p, cat: null }); if (p.cat === 'transf') p.cat = p.amount >= 0 ? 'receita' : 'outros'; changed.add(p); }
+    t.pair = null;
+  }
+  t.cat = cat; t.manual = true;
+  if (applyAll) {
+    const k = keyOf(t.desc);
+    if (k) {
+      state.rules[k] = cat; await saveRules();
+      for (const x of state.tx) if (x !== t && !x.pair && keyOf(x.desc) === k && fits(cat, x.amount) && x.cat !== cat) { x.cat = cat; changed.add(x); }
+    }
+  }
+  await DB.putMany('tx', [...changed]);
+  closeSheet(); render();
+  toast(changed.size > 1 ? `${changed.size} lançamentos atualizados` : 'Salvo');
+}
+
+async function deleteTx(ctx) {
+  const t = byId(ctx.id); if (!t) return closeSheet();
+  if (!confirm('Apagar este lançamento? Se ele estiver em um extrato, volta quando você importar o mesmo extrato de novo.')) return;
+  if (t.pair) { const p = byId(t.pair); if (p) { p.pair = null; p.cat = autoCat({ ...p }); if (p.cat === 'transf') p.cat = p.amount >= 0 ? 'receita' : 'outros'; await DB.put('tx', p); } }
+  state.tx = state.tx.filter(x => x !== t);
+  await DB.del('tx', t.id);
+  closeSheet(); render(); toast('Apagado');
+}
+
+// Lançamento manual
+function showAdd() {
+  openSheet(`
+    <h2>Novo lançamento</h2>
+    <div class="field"><span class="lbl">Tipo</span>
+      <div class="seg"><button data-act="addType" data-v="out" aria-pressed="true">Saída</button><button data-act="addType" data-v="in" aria-pressed="false">Entrada</button></div>
+    </div>
+    <div class="field"><label for="aVal">Valor (R$)</label><input id="aVal" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+    <div class="field"><label for="aDesc">Descrição</label><input id="aDesc" placeholder="Ex.: almoço, cliente, feira" autocomplete="off"></div>
+    <div class="field"><label for="aDate">Data</label><input id="aDate" type="date" value="${ymd(new Date())}"></div>
+    <div class="field"><label for="aAcct">Conta</label>
+      <select id="aAcct">${ACCOUNTS.map(a => `<option ${a === 'Dinheiro' ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
+    <div class="note small">Use para gastos em dinheiro vivo. O que passou pelo BB, Inter ou BTG já entra pelo extrato (lançar aqui também contaria duas vezes).</div>
+    <div class="actions"><button class="ghost" data-act="close">Cancelar</button><button class="primary" data-act="saveAdd">Salvar</button></div>`, { type: 'add', sign: -1 });
+}
+
+async function saveAdd(ctx) {
+  const v = parseNum($('#aVal').value);
+  if (!v) { toast('Digite um valor'); return; }
+  const date = $('#aDate').value || ymd(new Date());
+  const t = { id: newId(), account: $('#aAcct').value, date, amount: Math.abs(v) * ctx.sign, desc: $('#aDesc').value.trim() || (ctx.sign > 0 ? 'Entrada' : 'Saída'), manualEntry: true, at: Date.now() };
+  t.cat = autoCat(t);
+  state.tx.push(t); await DB.put('tx', t);
+  view.y = +date.slice(0, 4); view.m = +date.slice(5, 7) - 1; view.mode = 'month';
+  closeSheet(); render(); toast('Lançamento salvo');
+}
+
+// ---------- backup ----------
+const b64 = buf => { const a = new Uint8Array(buf); let s = ''; for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pass, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptJSON(obj, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pass, salt);
+  const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return { app: 'balanco', enc: 1, salt: b64(salt), iv: b64(iv), data: b64(data) };
+}
+async function decryptJSON(box, pass) {
+  const key = await deriveKey(pass, unb64(box.salt));
+  const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, key, unb64(box.data));
+  return JSON.parse(new TextDecoder().decode(plainBuf));
+}
+async function saveFile(name, text, type) {
+  const file = new File([text], name, { type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return true; }
+    catch (e) { if (e.name === 'AbortError') return false; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  return true;
+}
+async function doBackup() {
+  const pass = $('#bkPass').value;
+  let payload = { app: 'balanco', v: 1, exportedAt: new Date().toISOString(), tx: state.tx, rules: state.rules };
+  if (pass) payload = await encryptJSON(payload, pass);
+  const ok = await saveFile(`balanco-backup-${ymd(new Date())}.json`, JSON.stringify(payload), 'application/json');
+  if (ok) { state.settings.lastBackup = Date.now(); await saveSettings(); closeSheet(); toast('Backup gerado'); }
+}
+async function restoreBackup(file) {
+  try {
+    let data = JSON.parse(decodeText(await file.arrayBuffer()));
+    if (data.enc) {
+      const pass = prompt('Senha deste backup:');
+      if (!pass) return;
+      try { data = await decryptJSON(data, pass); } catch { toast('Senha errada'); return; }
+    }
+    if (data.app !== 'balanco' || !Array.isArray(data.tx)) throw new Error();
+    const map = new Map(state.tx.map(t => [t.id, t]));
+    for (const t of data.tx) map.set(t.id, t);
+    state.tx = [...map.values()];
+    Object.assign(state.rules, data.rules || {});
+    await DB.putMany('tx', data.tx); await saveRules();
+    closeSheet(); render(); toast(`${data.tx.length} lançamentos restaurados`);
+  } catch { toast('Arquivo de backup inválido'); }
+}
+
+// Lembrete mensal no Calendário (último dia de cada mês, 19h)
+function calendarReminder() {
+  const d = new Date(); const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  const dt = `${last.getFullYear()}${pad(last.getMonth() + 1)}${pad(last.getDate())}`;
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Balanco//PT-BR', 'BEGIN:VEVENT', 'UID:balanco-mensal-' + dt,
+    'DTSTAMP:' + stamp, 'DTSTART;VALUE=DATE:' + dt, 'RRULE:FREQ=MONTHLY;BYMONTHDAY=-1',
+    'SUMMARY:Balanço do mês – importar extratos do BB\\, Inter e BTG',
+    'DESCRIPTION:Baixe o extrato do mês no BB\\, no Inter e no BTG (OFX) e importe no app Balanço.',
+    'BEGIN:VALARM', 'TRIGGER:PT19H', 'ACTION:DISPLAY', 'DESCRIPTION:Balanço do mês', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  const a = document.createElement('a'); a.href = url; a.download = 'lembrete-balanco.ics';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+}
+
+function showSettings() {
+  const lb = state.settings.lastBackup;
+  const ago = lb ? Math.floor((Date.now() - lb) / 86400000) : null;
+  openSheet(`
+    <h2>Ajustes</h2>
+    <div class="muted small">${state.tx.length} lançamentos guardados neste aparelho. Nada é enviado para a internet.</div>
+    <div class="group">
+      <h3>Backup</h3>
+      <p>Último backup: ${ago === null ? '<b class="out">nunca</b>' : ago === 0 ? 'hoje' : `há ${ago} dia${ago > 1 ? 's' : ''}`}. Salve no iCloud Drive para não perder nada se trocar de celular.</p>
+      <div class="field"><label for="bkPass">Senha do backup (recomendado)</label><input id="bkPass" type="password" autocomplete="new-password" placeholder="Deixe vazio para não proteger"></div>
+      <div class="stack" style="margin-top:12px">
+        <button class="primary" data-act="backup">Salvar backup</button>
+        <button class="ghost" data-act="restore">Restaurar um backup</button>
+      </div>
+    </div>
+    <div class="group">
+      <h3>Lembrete do balanço</h3>
+      <p>Cria um evento no Calendário no último dia de cada mês, às 19h, para importar os extratos.</p>
+      <button class="ghost" data-act="reminder">Adicionar ao Calendário</button>
+    </div>
+    <div class="group">
+      <h3>Apagar dados</h3>
+      <p>Remove todos os lançamentos e categorias aprendidas deste aparelho.</p>
+      <button class="ghost danger" data-act="wipe">Apagar tudo</button>
+    </div>
+    <div class="note small">Balanço ${APP_VERSION}</div>`, { type: 'settings' });
+}
+
+async function wipe() {
+  if (!confirm('Apagar TODOS os lançamentos deste aparelho? Isso não pode ser desfeito (a não ser que você tenha um backup).')) return;
+  await DB.clear('tx'); state.tx = []; state.rules = {}; await saveRules();
+  closeSheet(); render(); toast('Tudo apagado');
+}
+
+// ---------- ações ----------
+const actions = {
+  import: () => $('#file').click(),
+  add: showAdd,
+  settings: showSettings,
+  close: closeSheet,
+  prev: () => { if (view.mode === 'year') view.y--; else if (view.m === 0) { view.m = 11; view.y--; } else view.m--; view.cat = null; render(); },
+  next: () => { if (view.mode === 'year') view.y++; else if (view.m === 11) { view.m = 0; view.y++; } else view.m++; view.cat = null; render(); },
+  mode: el => { view.mode = el.dataset.v; view.cat = null; render(); },
+  acct: el => { view.acct = el.dataset.v; lsSet('acct', view.acct); view.cat = null; render(); },
+  cat: el => { view.cat = el.dataset.v && view.cat !== el.dataset.v ? el.dataset.v : null; render(); },
+  openMonth: el => { view.m = +el.dataset.v; view.mode = 'month'; render(); },
+  edit: el => { const t = byId(el.dataset.id); if (t) showEdit(t); },
+  pickCat: el => { sheetCtx.cat = el.dataset.v; sheet.querySelectorAll('[data-act="pickCat"]').forEach(b => b.setAttribute('aria-pressed', b === el)); },
+  saveEdit: () => saveEdit(sheetCtx),
+  deleteTx: () => deleteTx(sheetCtx),
+  batchAcct: el => { sheetCtx.batches[+el.dataset.i].account = el.dataset.v; showImport(sheetCtx); },
+  commitImport: () => commitImport(sheetCtx),
+  addType: el => { sheetCtx.sign = el.dataset.v === 'in' ? 1 : -1; sheet.querySelectorAll('[data-act="addType"]').forEach(b => b.setAttribute('aria-pressed', b === el)); },
+  saveAdd: () => saveAdd(sheetCtx),
+  backup: () => doBackup().catch(() => toast('Não consegui gerar o backup')),
+  restore: () => $('#restoreFile').click(),
+  reminder: calendarReminder,
+  wipe,
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el || el.disabled) return;
+  const fn = actions[el.dataset.act];
+  if (fn) fn(el, e);
+});
+$('#file').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; if (f.length) handleFiles(f); });
+$('#restoreFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreBackup(f); });
+
+// ---------- início ----------
+(async function start() {
+  await DB.open();
+  state.tx = await DB.all('tx');
+  state.rules = (await DB.get('kv', 'rules')) || {};
+  state.settings = (await DB.get('kv', 'settings')) || {};
+  if (state.tx.length && !state.tx.some(t => t.date.startsWith(monthKey(view.y, view.m)))) {
+    const latest = state.tx.map(t => t.date).sort().pop();
+    view.y = +latest.slice(0, 4); view.m = +latest.slice(5, 7) - 1;
+  }
+  render();
+  try { navigator.storage?.persist?.(); } catch {}
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+
+// Para testes no computador (não usado pelo app).
+window.__balanco = { parseOFX, parseCSV, parseNum, handleFiles, encryptJSON, decryptJSON, state };
+</script>
+</body>
+</html>
